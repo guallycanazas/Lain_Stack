@@ -23,6 +23,7 @@ class SubscriberBase(BaseModel):
 
 
 class SubscriberCreate(SubscriberBase):
+    full_name: Optional[str] = None
     ki: str = Field(..., min_length=32, max_length=32, pattern=r"^[0-9a-fA-F]{32}$")
     opc: str = Field(..., min_length=32, max_length=32, pattern=r"^[0-9a-fA-F]{32}$")
     amf: str = Field(default="8000", min_length=4, max_length=4, pattern=r"^[0-9a-fA-F]{4}$")

@@ -77,6 +77,10 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
         <div className="grid grid-cols-2 gap-3">
           {!sub && (
             <>
+              <div className="col-span-2" style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Se creará directamente en Open5GS usando la plantilla VoLTE validada del abonado 001010000010004.
+                Solo completa los datos propios de la SIM.
+              </div>
               <div>
                 <label className="label">IMSI *</label>
                 <input className="input mono" value={form.imsi} onChange={e => setForm(p => ({ ...p, imsi: e.target.value }))} placeholder="716020100000001" />
@@ -84,10 +88,6 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
               <div>
                 <label className="label">MSISDN *</label>
                 <input className="input mono" value={form.msisdn} onChange={e => setForm(p => ({ ...p, msisdn: e.target.value }))} placeholder="10005 o 51900000001" />
-              </div>
-              <div>
-                <label className="label">ICCID</label>
-                <input className="input mono" value={form.iccid} onChange={e => setForm(p => ({ ...p, iccid: e.target.value }))} placeholder="8951..." />
               </div>
               <div>
                 <label className="label">Ki *</label>
@@ -107,44 +107,48 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
               </div>
             </>
           )}
-          <div className={!sub ? '' : 'col-span-2'}>
-            <label className="label">Nombre completo *</label>
-            <input className="input" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
-          </div>
-          <div>
-            <label className="label">Email</label>
-            <input className="input" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-          </div>
-          <div>
-            <label className="label">Estado</label>
-            <select className="select" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as any }))}>
-              <option value="active">Activo</option>
-              <option value="inactive">Inactivo</option>
-              <option value="suspended">Suspendido</option>
-              <option value="testing">Prueba</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">APN</label>
-            <input className="input mono" value={form.apn} onChange={e => setForm(p => ({ ...p, apn: e.target.value }))} placeholder="internet" />
-          </div>
-          <div>
-            <label className="label">Tipo SIM</label>
-            <select className="select" value={form.sim_type} onChange={e => setForm(p => ({ ...p, sim_type: e.target.value as any }))}>
-              <option value="usim">USIM</option>
-              <option value="isim">ISIM</option>
-              <option value="uicc">UICC</option>
-              <option value="virtual">Virtual</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Perfil</label>
-            <input className="input" value={form.profile} onChange={e => setForm(p => ({ ...p, profile: e.target.value }))} placeholder="volte, data, ims..." />
-          </div>
-          <div className="col-span-2">
-            <label className="label">Notas</label>
-            <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
-          </div>
+          {sub && (
+            <>
+              <div className="col-span-2">
+                <label className="label">Nombre completo *</label>
+                <input className="input" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input className="input" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Estado</label>
+                <select className="select" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as any }))}>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                  <option value="suspended">Suspendido</option>
+                  <option value="testing">Prueba</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">APN</label>
+                <input className="input mono" value={form.apn} onChange={e => setForm(p => ({ ...p, apn: e.target.value }))} placeholder="internet" />
+              </div>
+              <div>
+                <label className="label">Tipo SIM</label>
+                <select className="select" value={form.sim_type} onChange={e => setForm(p => ({ ...p, sim_type: e.target.value as any }))}>
+                  <option value="usim">USIM</option>
+                  <option value="isim">ISIM</option>
+                  <option value="uicc">UICC</option>
+                  <option value="virtual">Virtual</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Perfil</label>
+                <input className="input" value={form.profile} onChange={e => setForm(p => ({ ...p, profile: e.target.value }))} placeholder="volte, data, ims..." />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Notas</label>
+                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+              </div>
+            </>
+          )}
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>

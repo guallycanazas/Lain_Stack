@@ -70,6 +70,7 @@ async def create_subscriber(body: SubscriberCreate, current_user: CurrentUser, r
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     local_data = body.model_dump(exclude={"ki", "opc", "amf", "imeisv"})
+    local_data["full_name"] = body.full_name or f"Open5GS Subscriber {body.imsi}"
     local_data["status"] = SubscriberStatus.ACTIVE
     local_data["apn"] = "internet,ims"
     local_data["profile"] = body.profile or "open5gs-volte"
