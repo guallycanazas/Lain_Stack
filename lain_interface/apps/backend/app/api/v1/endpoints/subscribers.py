@@ -121,7 +121,7 @@ async def sync_open5gs_subscribers(current_user: CurrentUser, request: Request, 
             skipped.append({"imsi": imsi, "reason": f"invalid MSISDN in Open5GS: {msisdn}"})
             continue
 
-        apn = item["apns"][0] if item.get("apns") else "internet"
+        apn = ",".join(item["apns"]) if item.get("apns") else "internet"
         local_status = SubscriberStatus.ACTIVE if item.get("subscriber_status") == 0 else SubscriberStatus.SUSPENDED
         existing = await repo.get_by_imsi(imsi)
         if existing:
