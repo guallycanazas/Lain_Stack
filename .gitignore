@@ -1,0 +1,21 @@
+# Lain Stack — Root .gitignore
+# ───────────────────────────────────────
+
+# Secrets
+*.env.local
+*.env.production
+.env.secret
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
