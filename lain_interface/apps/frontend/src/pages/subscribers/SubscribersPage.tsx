@@ -37,89 +37,29 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
   const [saving, setSaving] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
 
-  const open5gsConfigPreview = {
-    method: 'POST',
-    url: '/api/db/Subscriber',
-    payload: {
-      schema_version: 1,
-      imsi: form.imsi || '<IMSI>',
-      msisdn: form.msisdn ? [form.msisdn] : ['<MSISDN>'],
-      imeisv: [],
-      mme_host: [],
-      mme_realm: [],
-      purge_flag: [],
-      security: {
-        k: form.ki || '<KI>',
-        amf: form.amf || '8000',
-        op: null,
-        opc: form.opc || '<OPC>',
-      },
-      ambr: {
-        downlink: { value: 1, unit: 3 },
-        uplink: { value: 1, unit: 3 },
-      },
-      slice: [
-        {
-          sst: 1,
-          default_indicator: true,
-          session: [
-            {
-              name: 'internet',
-              type: 3,
-              qos: {
-                index: 9,
-                arp: { priority_level: 8, pre_emption_capability: 1, pre_emption_vulnerability: 1 },
-              },
-              ambr: {
-                downlink: { value: 1, unit: 3 },
-                uplink: { value: 1, unit: 3 },
-              },
-              pcc_rule: [],
-            },
-            {
-              name: 'ims',
-              type: 3,
-              qos: {
-                index: 5,
-                arp: { priority_level: 1, pre_emption_capability: 1, pre_emption_vulnerability: 1 },
-              },
-              ambr: {
-                downlink: { value: 3580, unit: 1 },
-                uplink: { value: 1530, unit: 1 },
-              },
-              pcc_rule: [
-                {
-                  flow: [],
-                  qos: {
-                    index: 1,
-                    arp: { priority_level: 2, pre_emption_capability: 2, pre_emption_vulnerability: 2 },
-                    mbr: { downlink: { value: 128, unit: 1 }, uplink: { value: 128, unit: 1 } },
-                    gbr: { downlink: { unit: 1 }, uplink: { unit: 1 } },
-                  },
-                },
-                {
-                  flow: [],
-                  qos: {
-                    index: 2,
-                    arp: { priority_level: 4, pre_emption_capability: 2, pre_emption_vulnerability: 2 },
-                    mbr: { downlink: { value: 812, unit: 1 }, uplink: { value: 812, unit: 1 } },
-                    gbr: { downlink: { unit: 1 }, uplink: { unit: 1 } },
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      access_restriction_data: 32,
-      subscriber_status: 0,
-      operator_determined_barring: 2,
-      network_access_mode: 0,
-      subscribed_rau_tau_timer: 12,
-    },
-  }
+  const configPreview = `POST /api/db/Subscriber
+
+IMSI: ${form.imsi || '<IMSI>'}
+MSISDN: ${form.msisdn || '<MSISDN>'}
+Ki: ${form.ki || '<KI>'}
+OPc: ${form.opc || '<OPC>'}
+AMF: ${form.amf || '8000'}
+
+Perfil aplicado:
+- APN internet: type 3, QCI 9
+- APN ims: type 3, QCI 5
+- PCC IMS: QCI 1 y QCI 2
+- subscriber_status: 0
+- operator_determined_barring: 2`
 
   const handleSave = async () => {
+    if (!sub) {
+      if (!/^\d{15}$/.test(form.imsi)) return toast.error('IMSI debe tener 15 dígitos')
+      if (!/^\+?\d{4,15}$/.test(form.msisdn)) return toast.error('MSISDN inválido')
+      if (!/^[0-9A-Fa-f]{32}$/.test(form.ki)) return toast.error('Ki debe tener 32 caracteres HEX')
+      if (!/^[0-9A-Fa-f]{32}$/.test(form.opc)) return toast.error('OPc debe tener 32 caracteres HEX')
+      if (!/^[0-9A-Fa-f]{4}$/.test(form.amf)) return toast.error('AMF debe tener 4 caracteres HEX')
+    }
     setSaving(true)
     try {
       const payload = {
@@ -244,7 +184,7 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
                 padding: 14,
                 whiteSpace: 'pre-wrap',
               }}>
-                {JSON.stringify(open5gsConfigPreview, null, 2)}
+                {configPreview}
               </pre>
             )}
           </div>
