@@ -24,6 +24,14 @@ class Open5GSClient:
         )
         return {"Authorization": f"Bearer {token}"}
 
+    async def _csrf_headers(self, client: httpx.AsyncClient) -> dict[str, str]:
+        response = await client.get(f"{self.base_url}/api/auth/csrf")
+        response.raise_for_status()
+        csrf_token = response.json().get("csrfToken")
+        if not csrf_token:
+            raise Open5GSClientError("Open5GS did not return a CSRF token")
+        return {**self._auth_headers(), "X-CSRF-TOKEN": csrf_token}
+
     async def list_subscribers(self) -> list[dict[str, Any]]:
         if not self.base_url:
             raise Open5GSClientError("OPEN5GS_API_URL is not configured")
@@ -64,9 +72,10 @@ class Open5GSClient:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = await self._csrf_headers(client)
                 response = await client.post(
                     f"{self.base_url}/api/db/Subscriber",
-                    headers=self._auth_headers(),
+                    headers=headers,
                     json=payload,
                 )
                 response.raise_for_status()
@@ -80,9 +89,10 @@ class Open5GSClient:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = await self._csrf_headers(client)
                 response = await client.patch(
                     f"{self.base_url}/api/db/Subscriber/{imsi}",
-                    headers=self._auth_headers(),
+                    headers=headers,
                     json=payload,
                 )
                 response.raise_for_status()
@@ -96,9 +106,10 @@ class Open5GSClient:
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
+                headers = await self._csrf_headers(client)
                 response = await client.delete(
                     f"{self.base_url}/api/db/Subscriber/{imsi}",
-                    headers=self._auth_headers(),
+                    headers=headers,
                 )
                 if response.status_code == 404:
                     return
