@@ -82,6 +82,7 @@ class Settings(BaseSettings):
 
     # ── Lab Integration Connectors (future) ──────────────────────────
     OPEN5GS_API_URL: str = ""
+    OPEN5GS_JWT_SECRET: str = "change-me"
     KAMAILIO_LOG_PATH: str = "/var/log/kamailio"
     PYHSS_API_URL: str = ""
     RAN_CONNECTOR_URL: str = ""

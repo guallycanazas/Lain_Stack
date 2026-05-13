@@ -16,6 +16,8 @@ import type {
   ServiceStatus,
   DashboardKPIs,
   PaginatedResponse,
+  Open5GSSubscribersResponse,
+  Open5GSSyncResponse,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export const subscribersApi = {
     apiClient.patch<Subscriber>(`/subscribers/${id}`, data),
   delete: (id: number) => apiClient.delete(`/subscribers/${id}`),
   exportCsv: () => apiClient.get('/subscribers/export/csv', { responseType: 'blob' }),
+  listOpen5GS: () => apiClient.get<Open5GSSubscribersResponse>('/subscribers/open5gs'),
+  syncOpen5GS: () => apiClient.post<Open5GSSyncResponse>('/subscribers/open5gs/sync'),
 }
 
 // ── SIM Cards ─────────────────────────────────────────────────────────

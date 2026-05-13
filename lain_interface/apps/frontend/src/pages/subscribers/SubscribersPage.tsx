@@ -4,9 +4,9 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { subscribersApi } from '@/api/endpoints'
-import { Plus, Search, Download, RefreshCw, Edit2, Trash2, Eye } from 'lucide-react'
+import { Plus, Search, Download, RefreshCw, Edit2, Trash2, RadioTower, CloudDownload } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { Subscriber, SubscriberStatus } from '@/types'
+import type { Open5GSSubscriber, Subscriber, SubscriberStatus } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 
 const STATUS_LABELS: Record<SubscriberStatus, string> = {
@@ -137,6 +137,7 @@ export function SubscribersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editSub, setEditSub] = useState<Subscriber | undefined>()
+  const [open5gsItems, setOpen5gsItems] = useState<Open5GSSubscriber[] | null>(null)
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['subscribers', page, search, statusFilter],
@@ -154,6 +155,24 @@ export function SubscribersPage() {
       qc.invalidateQueries({ queryKey: ['subscribers'] })
     },
     onError: () => toast.error('Error al eliminar'),
+  })
+
+  const loadOpen5GSMut = useMutation({
+    mutationFn: () => subscribersApi.listOpen5GS().then(r => r.data),
+    onSuccess: (payload) => {
+      setOpen5gsItems(payload.items)
+      toast.success(`Open5GS conectado: ${payload.count} abonados detectados`)
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'No se pudo leer Open5GS'),
+  })
+
+  const syncOpen5GSMut = useMutation({
+    mutationFn: () => subscribersApi.syncOpen5GS().then(r => r.data),
+    onSuccess: async (payload) => {
+      await qc.invalidateQueries({ queryKey: ['subscribers'] })
+      toast.success(`Sync Open5GS: ${payload.created} creados, ${payload.updated} actualizados, ${payload.skipped.length} omitidos`)
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'No se pudo sincronizar Open5GS'),
   })
 
   const handleExport = async () => {
@@ -185,6 +204,14 @@ export function SubscribersPage() {
           <button className="btn btn-secondary btn-sm" onClick={handleExport}>
             <Download size={13} /> Exportar CSV
           </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => loadOpen5GSMut.mutate()} disabled={loadOpen5GSMut.isPending}>
+            <RadioTower size={13} /> Ver Open5GS
+          </button>
+          {canEdit && (
+            <button className="btn btn-secondary btn-sm" onClick={() => syncOpen5GSMut.mutate()} disabled={syncOpen5GSMut.isPending}>
+              <CloudDownload size={13} /> Sync Open5GS
+            </button>
+          )}
           {canEdit && (
             <button className="btn btn-primary btn-sm" onClick={() => { setEditSub(undefined); setShowModal(true) }}>
               <Plus size={13} /> Nuevo
@@ -192,6 +219,42 @@ export function SubscribersPage() {
           )}
         </div>
       </div>
+
+      {open5gsItems && (
+        <div className="card mb-4" style={{ padding: 16 }}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Open5GS conectado</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {open5gsItems.length} abonados leídos desde WebUI · importación solo con MSISDN válido
+              </div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setOpen5gsItems(null)}>Ocultar</button>
+          </div>
+          <div className="table-wrapper" style={{ maxHeight: 260, overflow: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>IMSI</th>
+                  <th>MSISDN</th>
+                  <th>Estado Open5GS</th>
+                  <th>APNs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {open5gsItems.map(item => (
+                  <tr key={item.imsi}>
+                    <td className="mono">{item.imsi}</td>
+                    <td className="mono">{item.msisdn ?? 'sin MSISDN'}</td>
+                    <td className="mono">{item.subscriber_status ?? '—'}</td>
+                    <td className="mono" style={{ fontSize: 11 }}>{item.apns.join(', ') || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-4">

@@ -64,6 +64,35 @@ export interface Subscriber {
   deleted_at?: string
 }
 
+export interface Open5GSSubscriber {
+  imsi: string
+  msisdn?: string | null
+  msisdn_list: string[]
+  subscriber_status?: number
+  operator_determined_barring?: number
+  network_access_mode?: number
+  apns: string[]
+  sessions: Array<{
+    name?: string
+    type?: number
+    qos_index?: number
+  }>
+}
+
+export interface Open5GSSubscribersResponse {
+  source: 'open5gs'
+  count: number
+  items: Open5GSSubscriber[]
+}
+
+export interface Open5GSSyncResponse {
+  source: 'open5gs'
+  total_remote: number
+  created: number
+  updated: number
+  skipped: Array<{ imsi: string; reason: string }>
+}
+
 export type SimStatus = 'available' | 'assigned' | 'blocked' | 'testing' | 'retired'
 
 export interface SimCard {

@@ -9,6 +9,11 @@ from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import AdminOrOperator, CurrentUser, DBSession
+from app.integrations.open5gs_client import (
+    Open5GSClient,
+    Open5GSClientError,
+    summarize_open5gs_subscriber,
+)
 from app.models.audit_log import AuditAction
 from app.models.subscriber import Subscriber, SubscriberStatus, SimType
 from app.repositories.subscriber_repository import SubscriberRepository
@@ -53,6 +58,95 @@ async def create_subscriber(body: SubscriberCreate, current_user: CurrentUser, r
     await audit.log(AuditAction.CREATE, user=current_user, resource_type="subscriber",
                     resource_id=sub.id, request=request)
     return sub
+
+
+@router.get("/open5gs", summary="List subscribers directly from Open5GS WebUI")
+async def list_open5gs_subscribers(current_user: CurrentUser = None):
+    try:
+        subscribers = await Open5GSClient().list_subscribers()
+    except Open5GSClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "source": "open5gs",
+        "count": len(subscribers),
+        "items": [summarize_open5gs_subscriber(sub) for sub in subscribers],
+    }
+
+
+@router.post("/open5gs/sync", summary="Import Open5GS subscribers into local admin database", dependencies=[AdminOrOperator])
+async def sync_open5gs_subscribers(current_user: CurrentUser, request: Request, db: DBSession):
+    try:
+        open5gs_subscribers = await Open5GSClient().list_subscribers()
+    except Open5GSClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    repo = SubscriberRepository(db)
+    audit = AuditService(db)
+    created = 0
+    updated = 0
+    skipped: list[dict[str, str]] = []
+
+    for raw in open5gs_subscribers:
+        item = summarize_open5gs_subscriber(raw)
+        imsi = item.get("imsi")
+        msisdn = item.get("msisdn")
+        if not imsi:
+            skipped.append({"imsi": "", "reason": "missing IMSI"})
+            continue
+        if not msisdn:
+            skipped.append({"imsi": imsi, "reason": "missing MSISDN in Open5GS"})
+            continue
+        if not (10 <= len(msisdn) <= 15 and msisdn.isdigit()):
+            skipped.append({"imsi": imsi, "reason": f"invalid MSISDN in Open5GS: {msisdn}"})
+            continue
+
+        apn = item["apns"][0] if item.get("apns") else "internet"
+        local_status = SubscriberStatus.ACTIVE if item.get("subscriber_status") == 0 else SubscriberStatus.SUSPENDED
+        existing = await repo.get_by_imsi(imsi)
+        if existing:
+            existing.msisdn = msisdn
+            existing.status = local_status
+            existing.apn = apn
+            existing.sim_type = SimType.USIM
+            existing.profile = "open5gs"
+            existing.notes = "Synced from Open5GS WebUI"
+            await repo.update(existing)
+            updated += 1
+            continue
+
+        msisdn_owner = await repo.get_by_msisdn(msisdn)
+        if msisdn_owner:
+            skipped.append({"imsi": imsi, "reason": f"MSISDN {msisdn} already belongs to another subscriber"})
+            continue
+
+        subscriber = Subscriber(
+            imsi=imsi,
+            msisdn=msisdn,
+            full_name=f"Open5GS Subscriber {imsi}",
+            status=local_status,
+            apn=apn,
+            sim_type=SimType.USIM,
+            profile="open5gs",
+            notes="Synced from Open5GS WebUI",
+        )
+        await repo.create(subscriber)
+        created += 1
+
+    await audit.log(
+        AuditAction.UPDATE,
+        user=current_user,
+        resource_type="open5gs_subscribers_sync",
+        request=request,
+        metadata={"created": created, "updated": updated, "skipped": len(skipped)},
+    )
+    await db.commit()
+    return {
+        "source": "open5gs",
+        "total_remote": len(open5gs_subscribers),
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+    }
 
 
 @router.get("/{sub_id}", response_model=SubscriberRead)
