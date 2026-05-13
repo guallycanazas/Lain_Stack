@@ -33,9 +33,91 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
     ki: '',
     opc: '',
     amf: '8000',
-    imeisv: '',
   })
   const [saving, setSaving] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
+
+  const open5gsConfigPreview = {
+    method: 'POST',
+    url: '/api/db/Subscriber',
+    payload: {
+      schema_version: 1,
+      imsi: form.imsi || '<IMSI>',
+      msisdn: form.msisdn ? [form.msisdn] : ['<MSISDN>'],
+      imeisv: [],
+      mme_host: [],
+      mme_realm: [],
+      purge_flag: [],
+      security: {
+        k: form.ki || '<KI>',
+        amf: form.amf || '8000',
+        op: null,
+        opc: form.opc || '<OPC>',
+      },
+      ambr: {
+        downlink: { value: 1, unit: 3 },
+        uplink: { value: 1, unit: 3 },
+      },
+      slice: [
+        {
+          sst: 1,
+          default_indicator: true,
+          session: [
+            {
+              name: 'internet',
+              type: 3,
+              qos: {
+                index: 9,
+                arp: { priority_level: 8, pre_emption_capability: 1, pre_emption_vulnerability: 1 },
+              },
+              ambr: {
+                downlink: { value: 1, unit: 3 },
+                uplink: { value: 1, unit: 3 },
+              },
+              pcc_rule: [],
+            },
+            {
+              name: 'ims',
+              type: 3,
+              qos: {
+                index: 5,
+                arp: { priority_level: 1, pre_emption_capability: 1, pre_emption_vulnerability: 1 },
+              },
+              ambr: {
+                downlink: { value: 3580, unit: 1 },
+                uplink: { value: 1530, unit: 1 },
+              },
+              pcc_rule: [
+                {
+                  flow: [],
+                  qos: {
+                    index: 1,
+                    arp: { priority_level: 2, pre_emption_capability: 2, pre_emption_vulnerability: 2 },
+                    mbr: { downlink: { value: 128, unit: 1 }, uplink: { value: 128, unit: 1 } },
+                    gbr: { downlink: { unit: 1 }, uplink: { unit: 1 } },
+                  },
+                },
+                {
+                  flow: [],
+                  qos: {
+                    index: 2,
+                    arp: { priority_level: 4, pre_emption_capability: 2, pre_emption_vulnerability: 2 },
+                    mbr: { downlink: { value: 812, unit: 1 }, uplink: { value: 812, unit: 1 } },
+                    gbr: { downlink: { unit: 1 }, uplink: { unit: 1 } },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      access_restriction_data: 32,
+      subscriber_status: 0,
+      operator_determined_barring: 2,
+      network_access_mode: 0,
+      subscribed_rau_tau_timer: 12,
+    },
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -46,7 +128,6 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
         email: form.email || undefined,
         profile: form.profile || undefined,
         notes: form.notes || undefined,
-        imeisv: form.imeisv || undefined,
       }
       if (sub) {
         await subscribersApi.update(sub.id, payload)
@@ -78,8 +159,7 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
           {!sub && (
             <>
               <div className="col-span-2" style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Se creará directamente en Open5GS usando la plantilla VoLTE validada del abonado 001010000010004.
-                Solo completa los datos propios de la SIM.
+                Alta directa en Open5GS con perfil LTE/IMS/VoLTE del laboratorio. Completa solo los datos propios de la SIM.
               </div>
               <div>
                 <label className="label">IMSI *</label>
@@ -100,10 +180,6 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
               <div>
                 <label className="label">AMF *</label>
                 <input className="input mono" value={form.amf} onChange={e => setForm(p => ({ ...p, amf: e.target.value.toUpperCase() }))} placeholder="8000" />
-              </div>
-              <div>
-                <label className="label">IMEISV</label>
-                <input className="input mono" value={form.imeisv} onChange={e => setForm(p => ({ ...p, imeisv: e.target.value }))} placeholder="4370816125816151" />
               </div>
             </>
           )}
@@ -150,6 +226,29 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
             </>
           )}
         </div>
+        {!sub && (
+          <div className="mt-4">
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowConfig(p => !p)}>
+              {showConfig ? 'Ocultar config' : 'Ver config Open5GS'}
+            </button>
+            {showConfig && (
+              <pre className="mono mt-3" style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 12,
+                color: 'var(--text-secondary)',
+                fontSize: 11,
+                lineHeight: 1.5,
+                maxHeight: 320,
+                overflow: 'auto',
+                padding: 14,
+                whiteSpace: 'pre-wrap',
+              }}>
+                {JSON.stringify(open5gsConfigPreview, null, 2)}
+              </pre>
+            )}
+          </div>
+        )}
         <div className="flex justify-end gap-2 mt-5">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
