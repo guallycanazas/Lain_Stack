@@ -2,11 +2,12 @@
  * Subscribers page — CRUD table with search, filters and CSV export.
  */
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { subscribersApi } from '@/api/endpoints'
-import { Plus, Search, Download, RefreshCw, Edit2, Trash2, RadioTower, CloudDownload } from 'lucide-react'
+import { Plus, Search, Download, RefreshCw, Edit2, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import type { Open5GSSubscriber, Subscriber, SubscriberStatus } from '@/types'
+import type { Subscriber, SubscriberStatus } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 
 const STATUS_LABELS: Record<SubscriberStatus, string> = {
@@ -78,20 +79,40 @@ Perfil aplicado:
     }
   }
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'var(--overlay-scrim)', backdropFilter: 'blur(4px)' }}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 99999,
+        backdropFilter: 'blur(4px)',
+        padding: 16,
+        boxSizing: 'border-box',
+      }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="card w-full max-w-xl" style={{ maxHeight: '90vh', overflowY: 'auto', padding: 28 }}>
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 16,
+          padding: 28,
+          width: '100%',
+          maxWidth: 540,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>
           {sub ? 'Editar Suscriptor' : 'Nuevo Suscriptor'}
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {!sub && (
             <>
-              <div className="col-span-2" style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              <div style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
                 Alta directa en Open5GS con perfil LTE/IMS/VoLTE del laboratorio. Completa solo los datos propios de la SIM.
               </div>
               <div>
@@ -114,7 +135,7 @@ Perfil aplicado:
                 <label className="label">AMF *</label>
                 <input className="input mono" value={form.amf} onChange={e => setForm(p => ({ ...p, amf: e.target.value.toUpperCase() }))} placeholder="8000" />
               </div>
-              <div className="col-span-2">
+              <div style={{ gridColumn: '1 / -1' }}>
                 <label className="label">Perfil de servicio *</label>
                 <select className="select" value={form.service_profile} onChange={e => setForm(p => ({ ...p, service_profile: e.target.value }))}>
                   <option value="internet_ims">Internet + IMS / VoLTE</option>
@@ -142,7 +163,7 @@ Perfil aplicado:
           )}
         </div>
         {!sub && (
-          <div className="mt-4">
+          <div style={{ marginTop: 16 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowConfig(p => !p)}>
               {showConfig ? 'Ocultar config' : 'Ver config Open5GS'}
             </button>
@@ -164,7 +185,7 @@ Perfil aplicado:
             )}
           </div>
         )}
-        <div className="flex justify-end gap-2 mt-5">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? <div className="loader" style={{ width: 14, height: 14 }} /> : 'Guardar'}
@@ -173,6 +194,8 @@ Perfil aplicado:
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }
 
 export function SubscribersPage() {
@@ -183,7 +206,6 @@ export function SubscribersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editSub, setEditSub] = useState<Subscriber | undefined>()
-  const [open5gsItems, setOpen5gsItems] = useState<Open5GSSubscriber[] | null>(null)
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['subscribers', page, search, statusFilter],
@@ -201,24 +223,6 @@ export function SubscribersPage() {
       qc.invalidateQueries({ queryKey: ['subscribers'] })
     },
     onError: () => toast.error('Error al eliminar'),
-  })
-
-  const loadOpen5GSMut = useMutation({
-    mutationFn: () => subscribersApi.listOpen5GS().then(r => r.data),
-    onSuccess: (payload) => {
-      setOpen5gsItems(payload.items)
-      toast.success(`Open5GS conectado: ${payload.count} abonados detectados`)
-    },
-    onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'No se pudo leer Open5GS'),
-  })
-
-  const syncOpen5GSMut = useMutation({
-    mutationFn: () => subscribersApi.syncOpen5GS().then(r => r.data),
-    onSuccess: async (payload) => {
-      await qc.invalidateQueries({ queryKey: ['subscribers'] })
-      toast.success(`Sync Open5GS: ${payload.created} creados, ${payload.updated} actualizados, ${payload.skipped.length} omitidos`)
-    },
-    onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'No se pudo sincronizar Open5GS'),
   })
 
   const handleExport = async () => {
@@ -250,14 +254,7 @@ export function SubscribersPage() {
           <button className="btn btn-secondary btn-sm" onClick={handleExport}>
             <Download size={13} /> Exportar CSV
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => loadOpen5GSMut.mutate()} disabled={loadOpen5GSMut.isPending}>
-            <RadioTower size={13} /> Ver Open5GS
-          </button>
-          {canEdit && (
-            <button className="btn btn-secondary btn-sm" onClick={() => syncOpen5GSMut.mutate()} disabled={syncOpen5GSMut.isPending}>
-              <CloudDownload size={13} /> Sync Open5GS
-            </button>
-          )}
+          
           {canEdit && (
             <button className="btn btn-primary btn-sm" onClick={() => { setEditSub(undefined); setShowModal(true) }}>
               <Plus size={13} /> Nuevo
@@ -266,43 +263,7 @@ export function SubscribersPage() {
         </div>
       </div>
 
-      {open5gsItems && (
-        <div className="card mb-4" style={{ padding: 16 }}>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Open5GS conectado</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {open5gsItems.length} abonados leídos desde WebUI · importación solo con MSISDN válido
-              </div>
-            </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => setOpen5gsItems(null)}>Ocultar</button>
-          </div>
-          <div className="table-wrapper" style={{ maxHeight: 260, overflow: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>IMSI</th>
-                  <th>MSISDN</th>
-                  <th>Estado Open5GS</th>
-                  <th>APNs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {open5gsItems.map(item => (
-                  <tr key={item.imsi}>
-                    <td className="mono">{item.imsi}</td>
-                    <td className="mono">{item.msisdn ?? 'sin MSISDN'}</td>
-                    <td className="mono">{item.subscriber_status ?? '—'}</td>
-                    <td className="mono" style={{ fontSize: 11 }}>{item.apns.join(', ') || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
+      
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
