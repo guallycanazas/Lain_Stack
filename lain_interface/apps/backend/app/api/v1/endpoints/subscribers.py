@@ -63,18 +63,19 @@ async def create_subscriber(body: SubscriberCreate, current_user: CurrentUser, r
         opc=body.opc,
         amf=body.amf,
         imeisv=body.imeisv,
+        service_profile=body.service_profile,
     )
     try:
         await Open5GSClient().create_subscriber(open5gs_payload)
     except Open5GSClientError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    local_data = body.model_dump(exclude={"ki", "opc", "amf", "imeisv"})
+    local_data = body.model_dump(exclude={"ki", "opc", "amf", "imeisv", "service_profile"})
     local_data["full_name"] = body.full_name or f"Open5GS Subscriber {body.imsi}"
     local_data["status"] = SubscriberStatus.ACTIVE
-    local_data["apn"] = "internet,ims"
-    local_data["profile"] = body.profile or "open5gs-volte"
-    local_data["notes"] = body.notes or "Provisioned directly in Open5GS from Lain Interface"
+    local_data["apn"] = "internet,ims" if body.service_profile == "internet_ims" else "internet"
+    local_data["profile"] = None
+    local_data["notes"] = None
     sub = Subscriber(**local_data)
     sub = await repo.create(sub)
     await audit.log(AuditAction.CREATE, user=current_user, resource_type="subscriber",

@@ -24,12 +24,9 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
     msisdn: sub?.msisdn ?? '',
     iccid: sub?.iccid ?? '',
     full_name: sub?.full_name ?? '',
-    email: sub?.email ?? '',
     status: sub?.status ?? 'inactive',
     apn: sub?.apn ?? 'internet',
-    sim_type: sub?.sim_type ?? 'usim',
-    profile: sub?.profile ?? '',
-    notes: sub?.notes ?? '',
+    service_profile: 'internet_ims',
     ki: '',
     opc: '',
     amf: '8000',
@@ -44,11 +41,10 @@ MSISDN: ${form.msisdn || '<MSISDN>'}
 Ki: ${form.ki || '<KI>'}
 OPc: ${form.opc || '<OPC>'}
 AMF: ${form.amf || '8000'}
+Perfil: ${form.service_profile === 'internet_ims' ? 'Internet + IMS/VoLTE' : 'Solo Internet'}
 
 Perfil aplicado:
-- APN internet: type 3, QCI 9
-- APN ims: type 3, QCI 5
-- PCC IMS: QCI 1 y QCI 2
+- APN internet: type 3, QCI 9${form.service_profile === 'internet_ims' ? '\n- APN ims: type 3, QCI 5\n- PCC IMS: QCI 1 y QCI 2' : ''}
 - subscriber_status: 0
 - operator_determined_barring: 2`
 
@@ -65,9 +61,6 @@ Perfil aplicado:
       const payload = {
         ...form,
         iccid: form.iccid || undefined,
-        email: form.email || undefined,
-        profile: form.profile || undefined,
-        notes: form.notes || undefined,
       }
       if (sub) {
         await subscribersApi.update(sub.id, payload)
@@ -121,17 +114,20 @@ Perfil aplicado:
                 <label className="label">AMF *</label>
                 <input className="input mono" value={form.amf} onChange={e => setForm(p => ({ ...p, amf: e.target.value.toUpperCase() }))} placeholder="8000" />
               </div>
+              <div className="col-span-2">
+                <label className="label">Perfil de servicio *</label>
+                <select className="select" value={form.service_profile} onChange={e => setForm(p => ({ ...p, service_profile: e.target.value }))}>
+                  <option value="internet_ims">Internet + IMS / VoLTE</option>
+                  <option value="internet">Solo Internet</option>
+                </select>
+              </div>
             </>
           )}
           {sub && (
             <>
-              <div className="col-span-2">
-                <label className="label">Nombre completo *</label>
-                <input className="input" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
-              </div>
               <div>
-                <label className="label">Email</label>
-                <input className="input" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+                <label className="label">MSISDN</label>
+                <input className="input mono" value={form.msisdn} onChange={e => setForm(p => ({ ...p, msisdn: e.target.value }))} />
               </div>
               <div>
                 <label className="label">Estado</label>
@@ -141,27 +137,6 @@ Perfil aplicado:
                   <option value="suspended">Suspendido</option>
                   <option value="testing">Prueba</option>
                 </select>
-              </div>
-              <div>
-                <label className="label">APN</label>
-                <input className="input mono" value={form.apn} onChange={e => setForm(p => ({ ...p, apn: e.target.value }))} placeholder="internet" />
-              </div>
-              <div>
-                <label className="label">Tipo SIM</label>
-                <select className="select" value={form.sim_type} onChange={e => setForm(p => ({ ...p, sim_type: e.target.value as any }))}>
-                  <option value="usim">USIM</option>
-                  <option value="isim">ISIM</option>
-                  <option value="uicc">UICC</option>
-                  <option value="virtual">Virtual</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Perfil</label>
-                <input className="input" value={form.profile} onChange={e => setForm(p => ({ ...p, profile: e.target.value }))} placeholder="volte, data, ims..." />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Notas</label>
-                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
               </div>
             </>
           )}

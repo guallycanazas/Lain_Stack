@@ -126,7 +126,51 @@ def build_open5gs_subscriber_payload(
     opc: str,
     amf: str = "8000",
     imeisv: str | None = None,
+    service_profile: str = "internet_ims",
 ) -> dict[str, Any]:
+    sessions = [
+        {
+            "name": "internet",
+            "type": 3,
+            "qos": {
+                "index": 9,
+                "arp": {
+                    "priority_level": 8,
+                    "pre_emption_capability": 1,
+                    "pre_emption_vulnerability": 1,
+                },
+            },
+            "ambr": {
+                "downlink": {"value": 1, "unit": 3},
+                "uplink": {"value": 1, "unit": 3},
+            },
+            "pcc_rule": [],
+        }
+    ]
+    if service_profile == "internet_ims":
+        sessions.append(
+            {
+                "name": "ims",
+                "type": 3,
+                "qos": {
+                    "index": 5,
+                    "arp": {
+                        "priority_level": 1,
+                        "pre_emption_capability": 1,
+                        "pre_emption_vulnerability": 1,
+                    },
+                },
+                "ambr": {
+                    "downlink": {"value": 3580, "unit": 1},
+                    "uplink": {"value": 1530, "unit": 1},
+                },
+                "pcc_rule": [
+                    _ims_pcc_rule(priority_level=2, qci=1, mbr=128),
+                    _ims_pcc_rule(priority_level=4, qci=2, mbr=812),
+                ],
+            }
+        )
+
     return {
         "schema_version": 1,
         "imsi": imsi,
@@ -149,45 +193,7 @@ def build_open5gs_subscriber_payload(
             {
                 "sst": 1,
                 "default_indicator": True,
-                "session": [
-                    {
-                        "name": "internet",
-                        "type": 3,
-                        "qos": {
-                            "index": 9,
-                            "arp": {
-                                "priority_level": 8,
-                                "pre_emption_capability": 1,
-                                "pre_emption_vulnerability": 1,
-                            },
-                        },
-                        "ambr": {
-                            "downlink": {"value": 1, "unit": 3},
-                            "uplink": {"value": 1, "unit": 3},
-                        },
-                        "pcc_rule": [],
-                    },
-                    {
-                        "name": "ims",
-                        "type": 3,
-                        "qos": {
-                            "index": 5,
-                            "arp": {
-                                "priority_level": 1,
-                                "pre_emption_capability": 1,
-                                "pre_emption_vulnerability": 1,
-                            },
-                        },
-                        "ambr": {
-                            "downlink": {"value": 3580, "unit": 1},
-                            "uplink": {"value": 1530, "unit": 1},
-                        },
-                        "pcc_rule": [
-                            _ims_pcc_rule(priority_level=2, qci=1, mbr=128),
-                            _ims_pcc_rule(priority_level=4, qci=2, mbr=812),
-                        ],
-                    },
-                ],
+                "session": sessions,
             }
         ],
         "access_restriction_data": 32,
