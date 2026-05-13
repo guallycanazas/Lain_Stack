@@ -21,7 +21,6 @@ from app.core.security import hash_password
 from app.models.alert import Alert, AlertLevel, AlertSource
 from app.models.call import Call, CallStatus, CallType
 from app.models.service_status import ServiceName, ServiceState, ServiceStatus
-from app.models.service_connector import ConnectorType, ServiceConnector
 from app.models.sim_card import SimCard, SimStatus, SubscriberSimAssignment
 from app.models.sms import SMS, SMSDirection, SMSStatus
 from app.models.subscriber import Subscriber, SubscriberStatus, SimType
@@ -253,90 +252,6 @@ async def seed(session: AsyncSession):
         session.add(svc)
     await session.flush()
     print(f"    ✓ {len(services_seed)} service statuses seeded")
-
-    # ── Service Connectors ──────────────────────────────────────────
-    print("  → Creating service connectors...")
-    connectors_seed = [
-        {
-            "service_name": "database",
-            "connector_type": ConnectorType.POSTGRESQL,
-            "name": "PostgreSQL Main",
-            "description": "Primary database connection",
-            "host": "db",
-            "port": 5432,
-            "timeout_seconds": 5,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "core"},
-        },
-        {
-            "service_name": "redis",
-            "connector_type": ConnectorType.REDIS,
-            "name": "Redis Cache",
-            "description": "Redis cache and session store",
-            "host": "redis",
-            "port": 6379,
-            "timeout_seconds": 3,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "cache"},
-        },
-        {
-            "service_name": "open5gs",
-            "connector_type": ConnectorType.HTTP,
-            "name": "Open5GS REST API",
-            "description": "Open5GS WebUI REST API health check",
-            "url": "http://open5gs:5000/api/v1/health",
-            "timeout_seconds": 5,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "core"},
-        },
-        {
-            "service_name": "kamailio",
-            "connector_type": ConnectorType.TCP,
-            "name": "Kamailio IMS SIP",
-            "description": "Kamailio IMS SIP service port",
-            "host": "kamailio",
-            "port": 5060,
-            "timeout_seconds": 3,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "ims"},
-        },
-        {
-            "service_name": "pyhss",
-            "connector_type": ConnectorType.HTTP,
-            "name": "PyHSS REST API",
-            "description": "PyHSS HSS/Diameter API health",
-            "url": "http://pyhss:3868/api/health",
-            "timeout_seconds": 5,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "core"},
-        },
-        {
-            "service_name": "backend",
-            "connector_type": ConnectorType.HTTP,
-            "name": "Backend API Health",
-            "description": "Backend API /health endpoint",
-            "url": "http://backend:8000/health",
-            "timeout_seconds": 3,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "api"},
-        },
-        {
-            "service_name": "frontend",
-            "connector_type": ConnectorType.DOCKER,
-            "name": "Frontend Container",
-            "description": "Frontend nginx container status",
-            "host": "canazastel_frontend",
-            "port": 80,
-            "timeout_seconds": 3,
-            "enabled": True,
-            "tags": {"env": "production", "tier": "web"},
-        },
-    ]
-    for cd in connectors_seed:
-        conn = ServiceConnector(**cd)
-        session.add(conn)
-    await session.flush()
-    print(f"    ✓ {len(connectors_seed)} service connectors created")
 
     await session.commit()
     print("\n✅ Seed completed successfully!")
