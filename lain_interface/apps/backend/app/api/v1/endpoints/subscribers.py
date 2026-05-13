@@ -12,6 +12,8 @@ from app.core.dependencies import AdminOrOperator, CurrentUser, DBSession
 from app.integrations.open5gs_client import (
     Open5GSClient,
     Open5GSClientError,
+    apply_open5gs_subscriber_update,
+    build_open5gs_subscriber_payload,
     summarize_open5gs_subscriber,
 )
 from app.models.audit_log import AuditAction
@@ -53,7 +55,26 @@ async def create_subscriber(body: SubscriberCreate, current_user: CurrentUser, r
         raise HTTPException(status_code=409, detail="IMSI already registered")
     if await repo.get_by_msisdn(body.msisdn):
         raise HTTPException(status_code=409, detail="MSISDN already registered")
-    sub = Subscriber(**body.model_dump())
+
+    open5gs_payload = build_open5gs_subscriber_payload(
+        imsi=body.imsi,
+        msisdn=body.msisdn,
+        ki=body.ki,
+        opc=body.opc,
+        amf=body.amf,
+        imeisv=body.imeisv,
+    )
+    try:
+        await Open5GSClient().create_subscriber(open5gs_payload)
+    except Open5GSClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    local_data = body.model_dump(exclude={"ki", "opc", "amf", "imeisv"})
+    local_data["status"] = SubscriberStatus.ACTIVE
+    local_data["apn"] = "internet,ims"
+    local_data["profile"] = body.profile or "open5gs-volte"
+    local_data["notes"] = body.notes or "Provisioned directly in Open5GS from Lain Interface"
+    sub = Subscriber(**local_data)
     sub = await repo.create(sub)
     await audit.log(AuditAction.CREATE, user=current_user, resource_type="subscriber",
                     resource_id=sub.id, request=request)
@@ -96,7 +117,7 @@ async def sync_open5gs_subscribers(current_user: CurrentUser, request: Request, 
         if not msisdn:
             skipped.append({"imsi": imsi, "reason": "missing MSISDN in Open5GS"})
             continue
-        if not (10 <= len(msisdn) <= 15 and msisdn.isdigit()):
+        if not (4 <= len(msisdn) <= 15 and msisdn.lstrip("+").isdigit()):
             skipped.append({"imsi": imsi, "reason": f"invalid MSISDN in Open5GS: {msisdn}"})
             continue
 
@@ -165,6 +186,16 @@ async def update_subscriber(sub_id: int, body: SubscriberUpdate, current_user: C
     sub = await repo.get_by_id(sub_id)
     if not sub:
         raise HTTPException(status_code=404, detail="Subscriber not found")
+
+    open5gs = Open5GSClient()
+    try:
+        remote = await open5gs.get_subscriber(sub.imsi)
+        if remote:
+            remote_payload = apply_open5gs_subscriber_update(remote, msisdn=body.msisdn)
+            await open5gs.update_subscriber(sub.imsi, remote_payload)
+    except Open5GSClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(sub, field, value)
     sub = await repo.update(sub)
@@ -180,6 +211,12 @@ async def delete_subscriber(sub_id: int, current_user: CurrentUser, request: Req
     sub = await repo.get_by_id(sub_id)
     if not sub:
         raise HTTPException(status_code=404, detail="Subscriber not found")
+
+    try:
+        await Open5GSClient().delete_subscriber(sub.imsi)
+    except Open5GSClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
     await repo.soft_delete(sub)
     await audit.log(AuditAction.DELETE, user=current_user, resource_type="subscriber",
                     resource_id=sub_id, request=request)

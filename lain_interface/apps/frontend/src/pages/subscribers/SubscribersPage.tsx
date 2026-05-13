@@ -30,17 +30,29 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
     sim_type: sub?.sim_type ?? 'usim',
     profile: sub?.profile ?? '',
     notes: sub?.notes ?? '',
+    ki: '',
+    opc: '',
+    amf: '8000',
+    imeisv: '',
   })
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
     try {
+      const payload = {
+        ...form,
+        iccid: form.iccid || undefined,
+        email: form.email || undefined,
+        profile: form.profile || undefined,
+        notes: form.notes || undefined,
+        imeisv: form.imeisv || undefined,
+      }
       if (sub) {
-        await subscribersApi.update(sub.id, form)
+        await subscribersApi.update(sub.id, payload)
         toast.success('Suscriptor actualizado')
       } else {
-        await subscribersApi.create(form)
+        await subscribersApi.create(payload)
         toast.success('Suscriptor creado')
       }
       await qc.invalidateQueries({ queryKey: ['subscribers'] })
@@ -71,11 +83,27 @@ function SubscriberModal({ sub, onClose }: { sub?: Subscriber; onClose: () => vo
               </div>
               <div>
                 <label className="label">MSISDN *</label>
-                <input className="input mono" value={form.msisdn} onChange={e => setForm(p => ({ ...p, msisdn: e.target.value }))} placeholder="51900000001" />
+                <input className="input mono" value={form.msisdn} onChange={e => setForm(p => ({ ...p, msisdn: e.target.value }))} placeholder="10005 o 51900000001" />
               </div>
               <div>
                 <label className="label">ICCID</label>
                 <input className="input mono" value={form.iccid} onChange={e => setForm(p => ({ ...p, iccid: e.target.value }))} placeholder="8951..." />
+              </div>
+              <div>
+                <label className="label">Ki *</label>
+                <input className="input mono" value={form.ki} onChange={e => setForm(p => ({ ...p, ki: e.target.value.toUpperCase() }))} placeholder="5BAD8598D1F631E3ED76F9333B8AA26F" />
+              </div>
+              <div>
+                <label className="label">OPc *</label>
+                <input className="input mono" value={form.opc} onChange={e => setForm(p => ({ ...p, opc: e.target.value.toUpperCase() }))} placeholder="BA5205DDC6FCA1DF6B83A1CC69859514" />
+              </div>
+              <div>
+                <label className="label">AMF *</label>
+                <input className="input mono" value={form.amf} onChange={e => setForm(p => ({ ...p, amf: e.target.value.toUpperCase() }))} placeholder="8000" />
+              </div>
+              <div>
+                <label className="label">IMEISV</label>
+                <input className="input mono" value={form.imeisv} onChange={e => setForm(p => ({ ...p, imeisv: e.target.value }))} placeholder="4370816125816151" />
               </div>
             </>
           )}

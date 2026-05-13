@@ -11,7 +11,7 @@ from app.models.subscriber import SimType, SubscriberStatus
 
 class SubscriberBase(BaseModel):
     imsi: str = Field(..., min_length=15, max_length=15, pattern=r"^\d{15}$")
-    msisdn: str = Field(..., min_length=10, max_length=15, pattern=r"^\+?\d{10,15}$")
+    msisdn: str = Field(..., min_length=4, max_length=15, pattern=r"^\+?\d{4,15}$")
     iccid: Optional[str] = Field(None, min_length=19, max_length=22)
     full_name: str = Field(..., min_length=1, max_length=255)
     email: Optional[EmailStr] = None
@@ -23,7 +23,10 @@ class SubscriberBase(BaseModel):
 
 
 class SubscriberCreate(SubscriberBase):
-    pass
+    ki: str = Field(..., min_length=32, max_length=32, pattern=r"^[0-9a-fA-F]{32}$")
+    opc: str = Field(..., min_length=32, max_length=32, pattern=r"^[0-9a-fA-F]{32}$")
+    amf: str = Field(default="8000", min_length=4, max_length=4, pattern=r"^[0-9a-fA-F]{4}$")
+    imeisv: Optional[str] = Field(None, min_length=16, max_length=16, pattern=r"^\d{16}$")
 
 
 class SubscriberUpdate(BaseModel):
