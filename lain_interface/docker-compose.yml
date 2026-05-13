@@ -1,0 +1,109 @@
+version: "3.9"
+
+# CanazasTEL Admin Platform — Docker Compose
+# Orchestrates: PostgreSQL, Redis, Backend (FastAPI), Frontend (React+Nginx)
+#
+# RAN/SDR components are NOT dockerized here (run natively with scripts).
+
+services:
+  # ── Database ──────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: canazastel_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-canazastel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-canazastel_dev_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-canazastel_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-canazastel} -d ${POSTGRES_DB:-canazastel_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - canazastel_net
+
+  # ── Redis ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: canazastel_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - canazastel_net
+
+  # ── Backend (FastAPI) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: canazastel_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      APP_ENV: ${APP_ENV:-development}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/backend:/app  # dev hot-reload
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks:
+      - canazastel_net
+
+  # ── Frontend (React → Nginx) ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: canazastel_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - canazastel_net
+
+volumes:
+  postgres_data:
+    name: canazastel_postgres_data
+  redis_data:
+    name: canazastel_redis_data
+
+networks:
+  canazastel_net:
+    name: canazastel_network
+    driver: bridge
